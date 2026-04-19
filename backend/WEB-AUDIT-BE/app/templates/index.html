@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Flask Semgrep Audit</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #111;
+        color: #fff;
+        text-align: center;
+        padding-top: 15%;
+      }
+      h1 {
+        color: #00ff99;
+        font-size: 2.5rem;
+      }
+      a.button {
+        background-color: #00ff99;
+        color: black;
+        padding: 12px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+      }
+      a.button:hover {
+        background-color: #00cc77;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Flask Semgrep Audit</h1>
+    <p>Audit keamanan kode Anda secara otomatis dengan Semgrep.</p>
+    <a href="{{ url_for('main.login_page') }}" class="button">Masuk ke Login</a>
+  </body>
+</html>

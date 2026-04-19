@@ -1,0 +1,6 @@
+.env
+flask_session/
+__pycache__/
+*.pyc
+BACKEND_CHANGES.md
+TEST_SESSION.py

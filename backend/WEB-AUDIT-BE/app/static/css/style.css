@@ -1,0 +1,27 @@
+body {
+  background: #121212;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+button {
+  background: #00ff99;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:hover {
+  background: #00cc77;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+pre {
+  background: #111;
+  color: #0f0;
+  max-width: 400px;
+  overflow: auto;
+}

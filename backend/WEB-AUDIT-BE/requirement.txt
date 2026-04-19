@@ -1,0 +1,7 @@
+flask
+flask-cors
+flask-session
+pyjwt
+semgrep
+flask_dance
+requests

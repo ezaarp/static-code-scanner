@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Login | Flask Semgrep Audit</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #111;
+        color: #fff;
+        text-align: center;
+        padding-top: 15%;
+      }
+      h1 {
+        color: #00ff99;
+      }
+      a.button {
+        background-color: #00ff99;
+        color: black;
+        padding: 12px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+      }
+      a.button:hover {
+        background-color: #00cc77;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Login ke Flask Semgrep Audit</h1>
+
+    {% if session.github_user %}
+      <p>👋 Hai, {{ session.github_user.login }}! Anda sudah login.</p>
+      <a href="{{ url_for('main.dashboard') }}" class="button">Masuk ke Dashboard</a>
+      <br><br>
+      <a href="{{ url_for('main.github_logout') }}" style="color: #ccc;">Logout</a>
+    {% else %}
+      <p>Silakan login menggunakan akun GitHub Anda:</p>
+      <a href="{{ url_for('main.github_login') }}" class="button">Login with GitHub</a>
+    {% endif %}
+  </body>
+</html>

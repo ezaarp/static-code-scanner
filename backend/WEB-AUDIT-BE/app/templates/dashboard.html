@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Dashboard | Flask Semgrep Audit</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #111;
+        color: #fff;
+        text-align: center;
+        padding: 40px;
+      }
+      h1 {
+        color: #00ff99;
+      }
+      .button {
+        background-color: #00ff99;
+        border: none;
+        color: black;
+        padding: 10px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: bold;
+      }
+      .button:hover {
+        background-color: #00cc77;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Dashboard</h1>
+
+    <div style="margin-bottom: 25px;">
+      <img src="{{ session.github_user.avatar_url }}" width="60" height="60" alt="avatar"><br>
+      <strong>{{ session.github_user.login }}</strong><br>
+      <a href="{{ session.github_user.html_url }}" target="_blank">GitHub Profile</a><br><br>
+      <a href="{{ url_for('main.github_logout') }}" class="button">Logout</a>
+    </div>
+
+    <hr style="margin: 40px 0;">
+
+    <h3>Upload File / Repo</h3>
+    <form method="POST" action="{{ url_for('main.audit') }}" enctype="multipart/form-data">
+      <input type="file" name="archive" accept=".zip,.tar,.gz,.py,.php,.js"><br><br>
+      <label>Config:</label>
+      <select name="config">
+        {% for key, label in configs.items() %}
+        <option value="{{ key }}">{{ label }}</option>
+        {% endfor %}
+      </select><br><br>
+      <button type="submit" class="button">Upload dan Scan</button>
+    </form>
+
+    <hr style="margin: 40px 0;">
+
+    <h3>LIST REPO</h3>
+
+    <!-- Controls -->
+    <div style="max-width: 920px; margin: 0 auto 16px;">
+      <input id="repoSearch" type="text" placeholder="Cari repo..." 
+             style="width:100%; padding:10px; border-radius:8px; border:1px solid #333; background:#171717; color:#eee;">
+    </div>
+
+    <!-- Repo Table -->
+    <div id="repoBox" style="max-width: 920px; margin: 0 auto; text-align:left;">
+      <div id="repoLoading" style="opacity:.8;">Mengambil repo kamu…</div>
+      <div id="repoError" style="display:none; color:#ff6b6b;"></div>
+      <table id="repoTable" style="width:100%; border-collapse: collapse; display:none;">
+        <thead>
+          <tr style="border-bottom:1px solid #333;">
+            <th style="padding:10px; text-align:left;">Pilih</th>
+            <th style="padding:10px; text-align:left;">Nama</th>
+            <th style="padding:10px; text-align:left;">Privasi</th>
+            <th style="padding:10px; text-align:left;">Link</th>
+          </tr>
+        </thead>
+        <tbody id="repoTbody"></tbody>
+      </table>
+      <div id="repoEmpty" style="display:none; opacity:.8;">Tidak ada repo yang cocok.</div>
+    </div>
+
+    <!-- Scan Selected Repo -->
+    <div style="margin-top:20px;">
+      <!-- kita pakai config dropdown yang sudah ada di form Upload di atas -->
+      <button id="scanSelectedBtn" class="button" disabled>Scan Repo Terpilih</button>
+    </div>
+
+    <!-- Hasil -->
+    <div id="scanResult" style="max-width: 920px; margin: 24px auto; text-align:left; display:none;">
+      <h4 style="color:#00ff99;">Hasil Scan</h4>
+      <pre id="scanJson" style="background:#0c0c0c; padding:16px; border-radius:8px; overflow:auto;"></pre>
+    </div>
+
+    <script>
+      const repoLoading = document.getElementById('repoLoading');
+      const repoError   = document.getElementById('repoError');
+      const repoTable   = document.getElementById('repoTable');
+      const repoTbody   = document.getElementById('repoTbody');
+      const repoEmpty   = document.getElementById('repoEmpty');
+      const repoSearch  = document.getElementById('repoSearch');
+      const scanBtn     = document.getElementById('scanSelectedBtn');
+      const scanResult  = document.getElementById('scanResult');
+      const scanJson    = document.getElementById('scanJson');
+
+      let allRepos = [];
+      let selected = null;
+
+      async function loadRepos() {
+        repoLoading.style.display = 'block';
+        repoError.style.display = 'none';
+        repoTable.style.display = 'none';
+        repoEmpty.style.display = 'none';
+        repoTbody.innerHTML = '';
+        selected = null;
+        scanBtn.disabled = true;
+
+        try {
+          const res = await fetch('{{ url_for("main.github_repos") }}', { credentials: 'same-origin' });
+          if (!res.ok) {
+            const t = await res.text();
+            throw new Error('Gagal memuat repo: ' + t);
+          }
+          const data = await res.json();
+          if (data.status !== 'success') {
+            throw new Error(data.message || 'Gagal memuat repo');
+          }
+          allRepos = data.repos || [];
+          renderRepos(allRepos);
+        } catch (e) {
+          repoError.textContent = e.message || 'Terjadi kesalahan mengambil repo.';
+          repoError.style.display = 'block';
+        } finally {
+          repoLoading.style.display = 'none';
+        }
+      }
+
+      function renderRepos(repos) {
+        repoTbody.innerHTML = '';
+        if (!repos.length) {
+          repoTable.style.display = 'none';
+          repoEmpty.style.display = 'block';
+          return;
+        }
+        repoEmpty.style.display = 'none';
+        repoTable.style.display = 'table';
+
+        for (const r of repos) {
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid #222';
+
+          const tdPick = document.createElement('td');
+          tdPick.style.padding = '10px';
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'repoPick';
+          radio.value = r.clone_url;        // nilai yang akan kita kirim sebagai git_url
+          radio.dataset.fullName = r.full_name || r.name;
+          radio.addEventListener('change', () => {
+            selected = { git_url: radio.value, full_name: radio.dataset.fullName };
+            scanBtn.disabled = false;
+          });
+          tdPick.appendChild(radio);
+
+          const tdName = document.createElement('td');
+          tdName.style.padding = '10px';
+          tdName.textContent = r.full_name || r.name;
+
+          const tdPriv = document.createElement('td');
+          tdPriv.style.padding = '10px';
+          tdPriv.textContent = r.private ? 'Private' : 'Public';
+
+          const tdLink = document.createElement('td');
+          tdLink.style.padding = '10px';
+          const a = document.createElement('a');
+          a.href = r.html_url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = 'Open';
+          tdLink.appendChild(a);
+
+          tr.appendChild(tdPick);
+          tr.appendChild(tdName);
+          tr.appendChild(tdPriv);
+          tr.appendChild(tdLink);
+
+          repoTbody.appendChild(tr);
+        }
+      }
+
+      // Live filter
+      repoSearch.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        const filtered = !q ? allRepos : allRepos.filter(r => {
+          const n = (r.full_name || r.name || '').toLowerCase();
+          return n.includes(q);
+        });
+        renderRepos(filtered);
+      });
+
+      // Submit scan
+      scanBtn.addEventListener('click', async () => {
+        if (!selected) return;
+
+        // Ambil config dari select yang sudah ada di form Upload
+        const configSelect = document.querySelector('select[name="config"]');
+        const configVal = configSelect ? configSelect.value : '';
+
+        const fd = new FormData();
+        fd.append('git_url', selected.git_url);
+        fd.append('config', configVal);
+
+        scanBtn.disabled = true;
+        scanBtn.textContent = 'Scanning…';
+        scanResult.style.display = 'none';
+        scanJson.textContent = '';
+
+        try {
+          const res = await fetch('{{ url_for("main.audit") }}', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin'
+          });
+          const data = await res.json();
+          scanJson.textContent = JSON.stringify(data, null, 2);
+          scanResult.style.display = 'block';
+        } catch (e) {
+          scanJson.textContent = 'Error: ' + (e.message || e);
+          scanResult.style.display = 'block';
+        } finally {
+          scanBtn.textContent = 'Scan Repo Terpilih';
+          scanBtn.disabled = false;
+        }
+      });
+
+      // Load repos on page mount
+      document.addEventListener('DOMContentLoaded', loadRepos);
+    </script>
+
+  </body>
+</html>
+
